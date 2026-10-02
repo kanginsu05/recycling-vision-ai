@@ -1,0 +1,9 @@
+{
+  "_note": "Single-image inference latency in ms (batch 32, 224x224, fp32, torch CPU, 4 threads, Intel i5-1035G7). Measured once; indicative only.",
+  "mobilenet_v3_large": 40.5,
+  "efficientnet_b0": 71.6,
+  "resnet50": 187.2,
+  "convnext_tiny": 174.6,
+  "efficientnet_v2_s": 85.6,
+  "swin_t": 112.4
+}

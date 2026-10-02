@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.ipynb_checkpoints/
+
+# Data (not redistributed - see data/README.md)
+data/*
+!data/README.md
+
+# Local artefacts
+logs/
+outputs/
+models/*.pt
+!models/recycle_classifier.pt
+.gradio/
+flagged/
+
+# Local tooling
+.claude/

@@ -1,0 +1,193 @@
+<div align="center">
+
+# ♻️ 분리수거 비전 AI
+
+**재활용품 사진 한 장으로 6종(골판지·유리·금속·종이·플라스틱·일반쓰레기)을 분류하는 이미지 분류 모델**
+
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![PyTorch](https://img.shields.io/badge/PyTorch-2.x-EE4C2C?logo=pytorch&logoColor=white)
+![scikit-learn](https://img.shields.io/badge/scikit--learn-1.x-F7931E?logo=scikitlearn&logoColor=white)
+![Gradio](https://img.shields.io/badge/Gradio-demo-F97316?logo=gradio&logoColor=white)
+
+2026 청년 AI 머신러닝/딥러닝 과정 · 분리수거 AI 챌린지(Kaggle) **6위** 출전작을, 대회 이후 혼자서 다시 설계해 발전시킨 프로젝트입니다.
+
+</div>
+
+| | 대회 당시 (2026.09) | 대회 이후 개선 |
+|---|---|---|
+| 모델 | 직접 설계한 4블록 CNN · 5-Fold 앙상블 | ImageNet 사전학습 **MobileNetV3-Large 파인튜닝** |
+| Hold-out 정확도* | ⟪step6_acc⟫ | **⟪ft_acc⟫** |
+| Macro F1* | ⟪step6_f1⟫ | **⟪ft_f1⟫** |
+| `trash` F1 (가장 어려운 클래스) | ⟪step6_trash⟫ | **⟪ft_trash⟫** |
+| CPU 추론 시간 | – | **약 40ms / 이미지** |
+| Kaggle Public | 0.75000 (6위) | – (대회 종료) |
+
+<sub>* 같은 Hold-out 431장(학습·모델 선택에 쓰지 않은 데이터)으로 두 모델을 모두 다시 평가한 수치입니다. → [평가 방법](#3-대회-이후-공정한-평가-기준부터-다시)</sub>
+
+<p align="center"><img src="assets/demo.png" width="860" alt="Gradio 데모 화면"></p>
+
+---
+
+## 목차
+1. [문제와 데이터](#1-문제와-데이터)
+2. [대회 당시: 바닥부터 만든 CNN으로 0.54 → 0.75](#2-대회-당시-바닥부터-만든-cnn으로-054--075)
+3. [대회 이후: 공정한 평가 기준부터 다시](#3-대회-이후-공정한-평가-기준부터-다시)
+4. [전이학습: 어떤 백본이 좋을까?](#4-전이학습-어떤-백본이-좋을까)
+5. [최종 모델: MobileNetV3-Large 파인튜닝](#5-최종-모델-mobilenetv3-large-파인튜닝)
+6. [오류 분석 & Grad-CAM](#6-오류-분석--grad-cam)
+7. [데모 실행](#7-데모-실행)
+8. [재현 방법](#8-재현-방법)
+9. [프로젝트 구조](#9-프로젝트-구조)
+10. [배운 점과 한계](#10-배운-점과-한계)
+
+---
+
+## 1. 문제와 데이터
+
+분리배출을 잘못하면 재활용 선별장에서 다시 손으로 골라내야 합니다. 사진만으로 재질을 자동 분류할 수 있으면 스마트 분리수거함이나 분리배출 안내 앱의 핵심 기능이 됩니다.
+
+- **데이터**: [TrashNet](https://github.com/garythung/trashnet) 기반 대회 데이터. 학습 2,151장, 테스트 373장(정답 비공개). 512×384 RGB, 흰 배경에서 촬영
+- **클래스**: `cardboard` · `glass` · `metal` · `paper` · `plastic` · `trash`
+- **평가지표**: 정확도(Accuracy)
+
+<p align="center"><img src="assets/class_distribution.png" width="640" alt="클래스 분포"></p>
+
+`trash`가 전체의 5%(117장)뿐인 **클래스 불균형**과, 표면 질감으로만 구분되는 **유리↔플라스틱**, **종이↔골판지**가 핵심 난제였습니다.
+
+## 2. 대회 당시: 바닥부터 만든 CNN으로 0.54 → 0.75
+
+팀 **GangNPArk**(강인수·박지훈)으로 출전해, 한 번에 하나씩만 바꾸며 효과를 확인하는 방식으로 모델을 개선했습니다.
+
+| # | 바꾼 것 | Kaggle Public |
+|---|---|---|
+| 0 | 기본 코드 (MLP) | 0.5373 |
+| 1 | MLP → CNN 3블록 | 0.6607 |
+| 2 | + 데이터 증강 (좌우반전, 회전 15°) | 0.6875 |
+| 3 | + BatchNorm | 0.7500 |
+| 4 | + 클래스 가중치 + Cosine LR | 0.7500 |
+| 6 | DeepCNN 4블록 @96px + **5-Fold 앙상블 + TTA** | **0.7500 (최종 6위)** |
+
+대회 당시 원본 코드는 [`legacy/`](legacy/)에 그대로 보관했습니다.
+
+**대회 중 겪은 문제.** 검증 데이터가 85/15로 한 번 나눈 322장뿐이라, 실행할 때마다 검증 정확도가 크게 흔들렸습니다. 그래서 어떤 변경이 진짜 효과가 있었는지 판단하기 어려웠습니다. 예를 들어 데이터 증강은 검증 정확도로는 −8.4%p였지만 Public 점수는 올랐습니다.
+
+## 3. 대회 이후: 공정한 평가 기준부터 다시
+
+모델을 바꾸기 전에 **평가 기준부터 고정**했습니다.
+
+- 학습 데이터 2,151장을 클래스 비율대로 **Dev 1,720장 / Hold-out 431장**으로 한 번만 나누고(seed 42, [`results/split.json`](results/split.json)), Hold-out은 **학습·하이퍼파라미터 튜닝·모델 선택에 전혀 쓰지 않았습니다.**
+- 대회 당시의 0~6단계 모델을 모두 같은 조건으로 다시 학습해 같은 Hold-out에서 평가했습니다([`experiments/01_baselines.py`](experiments/01_baselines.py)).
+- 백본 선택은 Dev 안의 5-Fold 교차검증 점수로만 했고, 파인튜닝 epoch 수는 미리 고정했습니다. Hold-out 점수는 정말 마지막에 한 번만 봤습니다.
+
+<p align="center"><img src="assets/journey.png" width="760" alt="개선 과정"></p>
+
+⟪journey_comment⟫
+
+## 4. 전이학습: 어떤 백본이 좋을까?
+
+바닥부터 학습한 CNN은 2천 장 남짓한 데이터로는 재질의 미세한 질감을 배우기 어렵습니다. 그래서 ImageNet(120만 장)으로 사전학습한 모델의 표현을 가져오기로 했습니다.
+
+GPU가 없는 노트북(i5-1035G7)에서 작업했기 때문에, 모든 후보를 파인튜닝해 보는 대신 **가중치를 고정한 특징 추출 + 로지스틱 회귀**로 6개 백본을 빠르고 공정하게 비교했습니다([`experiments/02_backbone_probe.py`](experiments/02_backbone_probe.py)).
+
+<p align="center"><img src="assets/backbone_probe.png" width="640" alt="백본 비교"></p>
+
+⟪probe_table⟫
+
+- 사전학습 특징만 써도, 분류기는 로지스틱 회귀 하나뿐인데 정확도가 **0.88~0.93**으로 대회 모델을 크게 앞섰습니다.
+- 성능은 ConvNeXt-T가 가장 좋았지만 CPU 추론이 175ms였습니다. **MobileNetV3-Large**는 4배 이상 빠르고(40ms) CV 점수 차이는 2.3%p에 불과했습니다. 노트북 CPU로 1시간 안에 끝까지 파인튜닝할 수 있다는 점도 고려해 최종 후보로 골랐습니다.
+
+## 5. 최종 모델: MobileNetV3-Large 파인튜닝
+
+[`experiments/03_finetune.py`](experiments/03_finetune.py)
+
+| 항목 | 설정 | 이유 |
+|---|---|---|
+| 입력 | 224×224, ImageNet 정규화 | 사전학습 조건과 맞춤 |
+| 증강 | RandomResizedCrop(0.6–1.0), 상하·좌우 반전, 회전 ±20°, ColorJitter | 촬영 각도·거리·조명 변화에 강건하게 |
+| 옵티마이저 | AdamW (wd 0.02), 백본 LR 3e-4 / 헤드 LR 1e-3 | 사전학습 가중치는 조금만, 새 헤드는 빠르게 |
+| 스케줄 | 1 epoch warm-up + Cosine, 12 epochs (고정) | Hold-out으로 epoch를 고르지 않기 위해 |
+| 손실 | CrossEntropy + 클래스 가중치 + Label smoothing 0.1 | `trash` 불균형 보정, 과신 방지 |
+| 추론 | 좌우반전 TTA | 비용 2배로 안정성 확보 |
+
+<p align="center"><img src="assets/learning_curve.png" width="600" alt="학습 곡선"></p>
+
+<p align="center"><img src="assets/confusion_matrix.png" width="860" alt="혼동 행렬"></p>
+
+<p align="center"><img src="assets/per_class_f1.png" width="680" alt="클래스별 F1"></p>
+
+⟪final_comment⟫
+
+## 6. 오류 분석 & Grad-CAM
+
+Grad-CAM(Selvaraju et al., 2017)으로 모델이 사진의 **어느 부분을 근거로** 판단했는지 시각화했습니다([`src/gradcam.py`](src/gradcam.py)).
+
+<p align="center"><img src="assets/gradcam_correct.png" width="860" alt="Grad-CAM 정답 예시"></p>
+
+<p align="center"><img src="assets/gradcam_errors.png" width="860" alt="Grad-CAM 오답 예시"></p>
+
+⟪error_comment⟫
+
+## 7. 데모 실행
+
+```bash
+pip install -r requirements.txt
+python app.py        # http://127.0.0.1:7860
+```
+
+사진을 올리거나 웹캠으로 찍으면 **상위 3개 클래스 확률**, **Grad-CAM 히트맵**, **해당 품목의 분리배출 방법**을 보여줍니다. 확신이 50% 미만이면 다시 찍어 달라고 안내합니다. 학습된 가중치(`models/recycle_classifier.pt`, fp16, 약 8MB)가 저장소에 포함되어 있어서 데이터 없이도 바로 실행됩니다.
+
+## 8. 재현 방법
+
+```bash
+python -m venv .venv && .venv\Scripts\activate      # macOS/Linux: source .venv/bin/activate
+pip install -r requirements.txt
+# data/ 폴더 준비 → data/README.md 참고
+
+python -m experiments.01_baselines                       # 대회 당시 0~6단계 재평가
+python -m experiments.02_backbone_probe                  # 백본 6종 비교
+python -m experiments.03_finetune --model mobilenet_v3_large --epochs 12
+python -m experiments.04_analyze --final ft_mobilenet_v3_large      # 그림 생성
+python -m experiments.05_make_submission --final ft_mobilenet_v3_large  # Kaggle 제출 파일
+```
+
+모든 수치는 `results/*.json`에, epoch별 기록은 `results/*_history.jsonl`에 저장됩니다. 저자 환경(i5-1035G7 CPU, GPU 없음) 기준 소요 시간: 01 약 ⟪time_01⟫, 02 약 30분, 03 약 40분.
+
+## 9. 프로젝트 구조
+
+```
+recycling-vision-ai/
+├── app.py                     # Gradio 데모
+├── src/
+│   ├── config.py              # 경로·클래스·시드
+│   ├── data.py                # 이미지 캐시, 고정 Hold-out 분할, 변환
+│   ├── models.py              # MLP/CNN/DeepCNN + 사전학습 백본
+│   ├── engine.py              # 학습 루프 (warm-up+cosine, 클래스 가중치, TTA)
+│   ├── metrics.py             # 정확도·F1·혼동행렬 기록
+│   ├── gradcam.py             # Grad-CAM
+│   ├── inference.py           # 단일 이미지 예측기
+│   └── plotting.py            # README 그림 스타일
+├── experiments/               # 01~05 실험 스크립트
+├── results/                   # 실험 수치(JSON), 학습 기록, 예측 확률
+├── assets/                    # README 그림, 데모 예시 이미지
+├── models/recycle_classifier.pt
+├── legacy/                    # 대회 당시 원본 코드
+└── data/                      # (git 제외) 데이터 준비 방법은 data/README.md
+```
+
+## 10. 배운 점과 한계
+
+**배운 점**
+- **평가 기준이 흔들리면 개선도 흔들립니다.** 322장짜리 검증셋 하나로는 ±수 %p 차이를 믿을 수 없었습니다. 고정된 Hold-out과 교차검증으로 바꾸자 어떤 변경이 진짜 효과가 있었는지 분명해졌습니다.
+- **데이터가 적을 때는 모델 구조를 다듬는 것보다 사전학습된 표현을 가져오는 것이 훨씬 효과적입니다.** 대회 기간 내내 구조를 바꿔 얻은 개선 폭보다, 사전학습 특징으로 바꾼 한 번의 개선 폭이 더 컸습니다.
+- **제약(CPU)이 설계를 바꿉니다.** 모든 후보를 파인튜닝하는 대신 특징 추출로 먼저 걸러내고, 정확도와 속도의 균형으로 최종 모델을 골랐습니다.
+
+**한계와 다음 단계**
+- TrashNet은 흰 배경·단일 물체 사진이라, 실제 분리수거장(여러 물체, 복잡한 배경, 오염)에서는 성능이 떨어질 수 있습니다. 실사용 데이터 수집과 객체 탐지(YOLO 등) 단계 추가가 필요합니다.
+- 대회 테스트셋 정답이 공개되지 않아, 개선된 모델의 Kaggle 점수는 확인하지 못했습니다(제출 파일 생성 스크립트는 포함).
+- 0~5단계 모델은 대회 보고서의 설명을 바탕으로 다시 구현한 것이라, 원본 노트북과 세부 구조가 다를 수 있습니다.
+
+---
+
+**Team GangNPArk** — 강인수 ([@kanginsu05](https://github.com/kanginsu05)), 박지훈 · 대회 이후 개선 작업: 강인수
+
+데이터: Gary Thung & Mindy Yang, *TrashNet* (MIT License) · 사전학습 가중치: torchvision (ImageNet-1K)
