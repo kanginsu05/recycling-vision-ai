@@ -97,7 +97,7 @@ def fig_probe(probe):
 
 def fig_confusion(before, after, before_title, after_title):
     cmap = LinearSegmentedColormap.from_list("blue", P.BLUE_RAMP)
-    fig, axes = plt.subplots(1, 2, figsize=(11, 4.6))
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4.8))
     for ax, res, title in zip(axes, (before, after), (before_title, after_title)):
         cm = np.array(res["confusion_matrix"], dtype=float)
         cm = cm / cm.sum(1, keepdims=True)
@@ -105,7 +105,7 @@ def fig_confusion(before, after, before_title, after_title):
         ax.grid(False)
         ax.set_xticks(range(6), CLASSES, rotation=40, ha="right")
         ax.set_yticks(range(6), CLASSES)
-        ax.set_xlabel("예측"); ax.set_ylabel("정답")
+        ax.set_xlabel("예측"); ax.set_ylabel("정답", rotation=0, labelpad=18, va="center")
         for i in range(6):
             for j in range(6):
                 if cm[i, j] >= 0.005:
