@@ -37,6 +37,7 @@ def setup():
         "axes.spines.top": False,
         "axes.spines.right": False,
         "axes.grid": True,
+        "axes.axisbelow": True,
         "grid.color": GRID,
         "grid.linewidth": 0.8,
         "grid.linestyle": "-",
@@ -50,8 +51,8 @@ def setup():
     })
 
 
-def save(fig, name):
+def save(fig, name, dpi=160):
     path = ASSETS_DIR / name
-    fig.savefig(path, dpi=160, bbox_inches="tight")
+    fig.savefig(path, dpi=dpi, bbox_inches="tight")
     plt.close(fig)
     print(f"  [figure] {path.relative_to(ASSETS_DIR.parent)}")

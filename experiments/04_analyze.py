@@ -56,10 +56,10 @@ def fig_class_distribution(y):
 
 def fig_journey(base, probe, ft, final):
     rows = [(STEP_LABELS[k], base[k]["accuracy"], P.GRAY) for k in STEP_LABELS if k in base]
-    if probe:
-        best = max(probe, key=lambda k: probe[k]["cv_acc"])
-        rows.append((f"전이학습: {BACKBONE_LABELS[best]} 특징 + 로지스틱 회귀",
-                     probe[best]["accuracy"], P.BLUE))
+    backbone = final.removeprefix("ft_")
+    if backbone in probe:  # same backbone, frozen -> shows the gain from fine-tuning
+        rows.append((f"전이학습: {BACKBONE_LABELS[backbone]} 가중치 고정 + 로지스틱 회귀",
+                     probe[backbone]["accuracy"], P.BLUE))
     if final in ft:
         name = BACKBONE_LABELS[final.removeprefix("ft_")]
         rows.append((f"전이학습: {name} 파인튜닝 (최종)", ft[final]["accuracy"], P.BLUE))
@@ -70,7 +70,7 @@ def fig_journey(base, probe, ft, final):
     for yi, a in zip(y, accs):
         ax.text(a + 0.006, yi, f"{a:.3f}", va="center", color=P.INK, fontsize=9.5)
     ax.set_yticks(y, labels)
-    ax.set_xlim(0.4, 1.0)
+    ax.set_xlim(0, 1.0)
     ax.grid(axis="y", visible=False)
     ax.set_xlabel("Hold-out 정확도 (431장, 학습·모델 선택에 쓰지 않은 데이터)")
     ax.set_title("개선 과정 — 같은 Hold-out 데이터로 다시 평가")
@@ -78,12 +78,15 @@ def fig_journey(base, probe, ft, final):
 
 
 def fig_probe(probe):
-    lat = json.loads((RESULTS_DIR / "cpu_latency.json").read_text())
+    lat = {k: v for k, v in json.loads((RESULTS_DIR / "cpu_latency.json").read_text()).items()
+           if not k.startswith("_")}
     fig, ax = plt.subplots(figsize=(7, 4))
     for k, v in probe.items():
         ax.scatter(lat[k], v["accuracy"], s=70, color=P.BLUE, edgecolor=P.SURFACE,
                    linewidth=2, zorder=3)
-        ax.annotate(BACKBONE_LABELS[k], (lat[k], v["accuracy"]), xytext=(7, -3),
+        # ConvNeXt-T and ResNet-50 share the same accuracy: put labels above/below
+        offset = {"convnext_tiny": (-10, 8), "resnet50": (-6, -15)}.get(k, (7, -3))
+        ax.annotate(BACKBONE_LABELS[k], (lat[k], v["accuracy"]), xytext=offset,
                     textcoords="offset points", color=P.INK_2, fontsize=9.5)
     ax.set_xlabel("CPU 추론 시간 (ms/이미지, i5-1035G7)")
     ax.set_ylabel("Hold-out 정확도")
@@ -160,7 +163,7 @@ def fig_learning_curve(final):
 def _grid(items, predictor, title, fname, ncols=4):
     """items: list of (image uint8, true label, pred label, prob)."""
     nrows = int(np.ceil(len(items) / ncols))
-    fig, axes = plt.subplots(nrows, ncols * 2, figsize=(ncols * 3.6, nrows * 2.0))
+    fig, axes = plt.subplots(nrows, ncols * 2, figsize=(ncols * 3.6, nrows * 2.3 + 0.4))
     axes = np.atleast_2d(axes)
     for ax in axes.flat:
         ax.axis("off")
@@ -174,8 +177,8 @@ def _grid(items, predictor, title, fname, ncols=4):
         a1.set_title(f"예측 {p} {prob:.0%}", fontsize=9, loc="left",
                      color=P.INK if ok else "#d03b3b")
     fig.suptitle(title, x=0.01, ha="left", fontsize=13, fontweight="bold", color=P.INK)
-    fig.tight_layout()
-    P.save(fig, fname)
+    fig.tight_layout(h_pad=1.2)
+    P.save(fig, fname, dpi=100)
 
 
 def fig_gradcam(x, y, hold, proba, predictor):

@@ -50,12 +50,13 @@ with gr.Blocks(title="분리수거 비전 AI") as demo:
         with gr.Column():
             inp = gr.Image(type="numpy", label="사진", sources=["upload", "webcam", "clipboard"])
             btn = gr.Button("분류하기", variant="primary")
-            if examples:
-                gr.Examples(examples, inputs=inp)
         with gr.Column():
             out_label = gr.Label(num_top_classes=3, label="예측 확률")
             out_cam = gr.Image(label="Grad-CAM (빨간 영역일수록 판단에 크게 기여)")
             out_md = gr.Markdown()
+    if examples:
+        gr.Examples(examples, inputs=inp, outputs=[out_label, out_cam, out_md], fn=classify,
+                    run_on_click=True, cache_examples=False, label="예시 이미지 (클릭하면 바로 분류)")
     btn.click(classify, inp, [out_label, out_cam, out_md])
     inp.upload(classify, inp, [out_label, out_cam, out_md])
 

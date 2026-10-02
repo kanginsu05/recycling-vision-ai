@@ -1,0 +1,100 @@
+{
+  "ft_mobilenet_v3_large": {
+    "config": {
+      "model": "mobilenet_v3_large",
+      "epochs": 12,
+      "size": 224,
+      "batch": 32,
+      "lr": 0.001,
+      "backbone_lr_mult": 0.3,
+      "weight_decay": 0.02,
+      "label_smoothing": 0.1,
+      "no_class_weights": false,
+      "limit": 0
+    },
+    "accuracy": 0.9559164733178654,
+    "macro_f1": 0.9510426079466076,
+    "per_class": {
+      "cardboard": {
+        "precision": 1.0,
+        "recall": 0.927536231884058,
+        "f1-score": 0.9624060150375939
+      },
+      "glass": {
+        "precision": 0.9540229885057471,
+        "recall": 0.9651162790697675,
+        "f1-score": 0.9595375722543352
+      },
+      "metal": {
+        "precision": 0.8933333333333333,
+        "recall": 0.9571428571428572,
+        "f1-score": 0.9241379310344827
+      },
+      "paper": {
+        "precision": 0.97,
+        "recall": 0.9603960396039604,
+        "f1-score": 0.9651741293532339
+      },
+      "plastic": {
+        "precision": 1.0,
+        "recall": 0.9512195121951219,
+        "f1-score": 0.975
+      },
+      "trash": {
+        "precision": 0.8518518518518519,
+        "recall": 1.0,
+        "f1-score": 0.92
+      }
+    },
+    "confusion_matrix": [
+      [
+        64,
+        0,
+        2,
+        3,
+        0,
+        0
+      ],
+      [
+        0,
+        83,
+        3,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        1,
+        67,
+        0,
+        0,
+        2
+      ],
+      [
+        0,
+        1,
+        1,
+        97,
+        0,
+        2
+      ],
+      [
+        0,
+        2,
+        2,
+        0,
+        78,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        23
+      ]
+    ]
+  }
+}

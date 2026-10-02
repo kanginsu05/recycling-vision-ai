@@ -1,0 +1,12 @@
+{
+  "model": "mobilenet_v3_large",
+  "epochs": 12,
+  "size": 224,
+  "batch": 32,
+  "lr": 0.001,
+  "backbone_lr_mult": 0.3,
+  "weight_decay": 0.02,
+  "label_smoothing": 0.1,
+  "no_class_weights": false,
+  "limit": 0
+}

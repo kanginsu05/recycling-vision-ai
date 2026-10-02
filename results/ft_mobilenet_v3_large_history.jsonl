@@ -7,3 +7,6 @@
 {"name": "ft_mobilenet_v3_large", "epoch": 7, "train_loss": 0.5663028932967276, "train_acc": 0.9870283018867925, "lr": 0.00043151050997275204, "sec": 282.9, "val_acc": 0.9443155452436195}
 {"name": "ft_mobilenet_v3_large", "epoch": 8, "train_loss": 0.5664648098765679, "train_acc": 0.9893867924528302, "lr": 0.0002947463491035902, "sec": 229.3, "val_acc": 0.9396751740139211}
 {"name": "ft_mobilenet_v3_large", "epoch": 9, "train_loss": 0.5510945387606351, "train_acc": 0.9929245283018868, "lr": 0.0001746106183395915, "sec": 230.0, "val_acc": 0.9419953596287703}
+{"name": "ft_mobilenet_v3_large", "epoch": 10, "train_loss": 0.5506655821260417, "train_acc": 0.9941037735849056, "lr": 8.083600011255399e-05, "sec": 268.7, "val_acc": 0.951276102088167}
+{"name": "ft_mobilenet_v3_large", "epoch": 11, "train_loss": 0.5460679666051325, "train_acc": 0.995872641509434, "lr": 2.1019556292103558e-05, "sec": 273.1, "val_acc": 0.9535962877030162}
+{"name": "ft_mobilenet_v3_large", "epoch": 12, "train_loss": 0.5429355513374761, "train_acc": 0.995872641509434, "lr": 7.259414484261928e-09, "sec": 270.5, "val_acc": 0.9535962877030162}

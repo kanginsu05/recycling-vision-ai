@@ -16,9 +16,9 @@
 | | 대회 당시 (2026.09) | 대회 이후 개선 |
 |---|---|---|
 | 모델 | 직접 설계한 4블록 CNN · 5-Fold 앙상블 | ImageNet 사전학습 **MobileNetV3-Large 파인튜닝** |
-| Hold-out 정확도* | ⟪step6_acc⟫ | **⟪ft_acc⟫** |
-| Macro F1* | ⟪step6_f1⟫ | **⟪ft_f1⟫** |
-| `trash` F1 (가장 어려운 클래스) | ⟪step6_trash⟫ | **⟪ft_trash⟫** |
+| Hold-out 정확도* | ⟪step6_acc⟫ | **0.956** |
+| Macro F1* | ⟪step6_f1⟫ | **0.951** |
+| `trash` F1 (가장 어려운 클래스) | ⟪step6_trash⟫ | **0.920** (재현율 1.000) |
 | CPU 추론 시간 | – | **약 40ms / 이미지** |
 | Kaggle Public | 0.75000 (6위) | – (대회 종료) |
 
@@ -91,10 +91,19 @@ GPU가 없는 노트북(i5-1035G7)에서 작업했기 때문에, 모든 후보�
 
 <p align="center"><img src="assets/backbone_probe.png" width="640" alt="백본 비교"></p>
 
-⟪probe_table⟫
+| 백본 | 특징 차원 | Dev 5-Fold CV 정확도 | Hold-out 정확도 | Hold-out Macro-F1 | CPU 추론 (ms) |
+|---|---:|---:|---:|---:|---:|
+| ConvNeXt-Tiny | 768 | 0.913 | 0.916 | 0.906 | 175 |
+| Swin-Tiny | 768 | 0.910 | 0.935 | 0.934 | 112 |
+| ResNet-50 | 2048 | 0.898 | 0.916 | 0.902 | 187 |
+| **MobileNetV3-Large** | 1280 | 0.890 | 0.910 | 0.900 | **40** |
+| EfficientNet-B0 | 1280 | 0.883 | 0.879 | 0.864 | 72 |
+| EfficientNetV2-S | 1280 | 0.880 | 0.886 | 0.872 | 86 |
+
+<sub>CV 정확도로 순위를 매겼습니다(모델 선택 기준). Hold-out 열은 참고용이며 선택에 쓰지 않았습니다.</sub>
 
 - 사전학습 특징만 써도, 분류기는 로지스틱 회귀 하나뿐인데 정확도가 **0.88~0.93**으로 대회 모델을 크게 앞섰습니다.
-- 성능은 ConvNeXt-T가 가장 좋았지만 CPU 추론이 175ms였습니다. **MobileNetV3-Large**는 4배 이상 빠르고(40ms) CV 점수 차이는 2.3%p에 불과했습니다. 노트북 CPU로 1시간 안에 끝까지 파인튜닝할 수 있다는 점도 고려해 최종 후보로 골랐습니다.
+- 성능은 ConvNeXt-T가 가장 좋았지만 CPU 추론이 175ms였습니다. **MobileNetV3-Large**는 4배 이상 빠르고(40ms) CV 점수 차이는 2.3%p에 불과했습니다. 노트북 CPU로 1시간 안에 끝까지 파인튜닝할 수 있다는 점도 고려해 최종 후보로 골랐습니다(ConvNeXt-T는 epoch당 약 17분이 걸려 12 epoch에 3시간 이상 필요).
 
 ## 5. 최종 모델: MobileNetV3-Large 파인튜닝
 
@@ -115,7 +124,9 @@ GPU가 없는 노트북(i5-1035G7)에서 작업했기 때문에, 모든 후보�
 
 <p align="center"><img src="assets/per_class_f1.png" width="680" alt="클래스별 F1"></p>
 
-⟪final_comment⟫
+- **같은 MobileNetV3-Large라도, 가중치를 고정했을 때(0.910)보다 끝까지 파인튜닝했을 때(0.956) 4.6%p 높았습니다.** 특징 추출 단계에서 가장 좋았던 Swin-T(0.935)와 ConvNeXt-T(0.916)도 넘었습니다.
+- 431장 중 오답은 **19장**입니다. Hold-out 정확도는 학습 내내 모니터링만 했고, 마지막 epoch의 가중치를 그대로 썼습니다.
+- 대회 때 가장 약했던 `trash`는 23장을 **모두 맞혔습니다(재현율 1.000)**. 대신 다른 물건을 `trash`로 본 경우가 4건 있어 정밀도는 0.852입니다. 클래스 가중치를 준 만큼 애매하면 `trash` 쪽으로 기우는 경향이 남아 있습니다.
 
 ## 6. 오류 분석 & Grad-CAM
 
@@ -125,7 +136,12 @@ Grad-CAM(Selvaraju et al., 2017)으로 모델이 사진의 **어느 부분을 �
 
 <p align="center"><img src="assets/gradcam_errors.png" width="860" alt="Grad-CAM 오답 예시"></p>
 
-⟪error_comment⟫
+**맞힌 예시**에서는 캔 바닥의 동심원, 병목과 병뚜껑, 구겨진 쿠킹포일처럼 **재질이 드러나는 부분**에 반응합니다. 배경이 아니라 물체를 보고 판단하고 있다는 뜻입니다.
+
+**틀린 19장**을 보면 대부분 **한 물건에 여러 재질이 섞인 경우**였습니다.
+- 오답 19건 중 8건이 `metal`로 잘못 예측된 경우였습니다. **금속 뚜껑이 달린 유리병**, **캔처럼 생긴 원통형 플라스틱 용기**처럼, Grad-CAM이 금속 뚜껑이나 원통형 윤곽에 집중하고 있습니다.
+- 흰색의 얇은 **종이상자(cardboard)는 `paper`로** 헷갈렸습니다. 골판지 특유의 갈색 단면이 보이지 않으면 사람이 봐도 구분이 어렵습니다.
+- 이 사례들은 모델의 한계이기도 하지만, **"유리병 + 금속 뚜껑"처럼 실제로도 분리해서 배출해야 하는 물건**이기도 합니다. 그래서 데모에서는 확신이 낮을 때 다시 찍도록 안내하고, 분리배출 방법에 "뚜껑은 따로 분리"를 함께 보여줍니다.
 
 ## 7. 데모 실행
 
@@ -150,7 +166,7 @@ python -m experiments.04_analyze --final ft_mobilenet_v3_large      # 그림 생
 python -m experiments.05_make_submission --final ft_mobilenet_v3_large  # Kaggle 제출 파일
 ```
 
-모든 수치는 `results/*.json`에, epoch별 기록은 `results/*_history.jsonl`에 저장됩니다. 저자 환경(i5-1035G7 CPU, GPU 없음) 기준 소요 시간: 01 약 ⟪time_01⟫, 02 약 30분, 03 약 40분.
+모든 수치는 `results/*.json`에, epoch별 기록은 `results/*_history.jsonl`에 저장됩니다. 저자 환경(i5-1035G7 CPU, GPU 없음) 기준 소요 시간: 01 약 ⟪time_01⟫, 02 약 30분, 03 약 55분.
 
 ## 9. 프로젝트 구조
 
